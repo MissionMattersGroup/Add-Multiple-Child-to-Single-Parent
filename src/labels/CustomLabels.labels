@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>Add_the_Child_Records</fullName>
+        <categories>Info</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Add Child Records</shortDescription>
+        <value>Click &quot;Add Rows&quot; and select 1, 3 or 5 records to be added to this section.</value>
+    </labels>
+    <labels>
+        <fullName>Delete_childRecord_Confrim</fullName>
+        <categories>Bulk child Record Utility</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Delete childRecord Confrim</shortDescription>
+        <value>Are you sure you want to delete the record? Click &apos;OK&apos; to continue deleting the record</value>
+    </labels>
+    <labels>
+        <fullName>Empty_Existing_Child_Records</fullName>
+        <categories>Info</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Empty Existing Child Records</shortDescription>
+        <value>There are no child records to display in the Existing child Section</value>
+    </labels>
+    <labels>
+        <fullName>Empty_File_Message</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Empty File Message</shortDescription>
+        <value>Empty file found.</value>
+    </labels>
+    <labels>
+        <fullName>ErrorMessage</fullName>
+        <categories>Error Message</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Error Message</shortDescription>
+        <value>Inappropriate input prameters provided. Please provide valid input parameters to continue viewing this page.</value>
+    </labels>
+    <labels>
+        <fullName>File_Uploaded_Message</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>File Uploaded Message</shortDescription>
+        <value>Your file has been successfully uploaded</value>
+    </labels>
+    <labels>
+        <fullName>No_Records_Saved</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>No Records Saved</shortDescription>
+        <value>No records have been saved.</value>
+    </labels>
+    <labels>
+        <fullName>Parent_Id_Error</fullName>
+        <categories>Error message</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Parent Id Error</shortDescription>
+        <value>Please provide the url with the proper Id of the parent object</value>
+    </labels>
+    <labels>
+        <fullName>Record_Delete_Confirmation</fullName>
+        <categories>Bulk child Record Utility</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Record Delete Confirmation</shortDescription>
+        <value>Record Deleted Successfully.</value>
+    </labels>
+    <labels>
+        <fullName>Return_URL_Error</fullName>
+        <categories>Error message</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Return URL Error</shortDescription>
+        <value>Please provide the Parameter retURL with the value</value>
+    </labels>
+    <labels>
+        <fullName>SaveError_Message</fullName>
+        <categories>Error message</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>SaveError Message</shortDescription>
+        <value>There are no records to save. Please add the records before saving the records</value>
+    </labels>
+    <labels>
+        <fullName>Setting_Error_Message</fullName>
+        <categories>Error message</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Setting Error Message</shortDescription>
+        <value>Please provide the Id of the setting object</value>
+    </labels>
+    <labels>
+        <fullName>Setting_object_Field_Values</fullName>
+        <categories>Field values error</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Setting object Field Values</shortDescription>
+        <value>Inappropriate Settings values encountered. Please navigate to the Settings tab and verify the configured record values or contact your Salesforce administrator.</value>
+    </labels>
+    <labels>
+        <fullName>Title_Child_Section</fullName>
+        <categories>Child Header Section</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Title Child Section</shortDescription>
+        <value>Child Record Information</value>
+    </labels>
+    <labels>
+        <fullName>Title_Parent_Section</fullName>
+        <categories>Header Section</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Title Parent Section</shortDescription>
+        <value>Parent Record Information</value>
+    </labels>
+    <labels>
+        <fullName>Wating_status</fullName>
+        <categories>waiting status message</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Waiting status</shortDescription>
+        <value>Processing....</value>
+    </labels>
+    <labels>
+        <fullName>add_multiple_child_records</fullName>
+        <categories>add</categories>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>Add Multiple Child Records</shortDescription>
+        <value>Add Multiple Child Records</value>
+    </labels>
+</CustomLabels>

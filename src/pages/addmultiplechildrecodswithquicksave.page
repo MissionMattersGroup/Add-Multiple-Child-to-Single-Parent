@@ -1,0 +1,173 @@
+<apex:page controller="Addmultiplechildrecordscontroller" sidebar="false">
+    
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" />
+    
+    <apex:sectionHeader title="Add Multiple {!objSetting.Child_Sobject_Name__c} Records"/>
+    
+    <apex:form >
+        <apex:pageMessages rendered="{!isVisible}" id="errorMessage" />
+        <p style="Margin-left:20px">
+            
+            <apex:commandLink value="Click here"  action="{!cancelItem}" rendered="{!isVisible}" />
+            <apex:outputLabel rendered="{!isVisible}">to return.  </apex:outputLabel>
+        </p>
+        <apex:pageBlock rendered="{!isPageVisible}" tabStyle="Settings__c">
+            <apex:pageBlockSection title="{!objSetting.Parent_Section_Title__c}" columns="2" collapsible="false">
+                <apex:repeat value="{!sObjectList}" var="objAccount">
+                    <apex:repeat value="{!listparentFieldSetMember}" var="fieldName">
+                        <apex:pageBlockSectionItem >
+                            <apex:outputLabel >{!fieldName.Label} </apex:outputLabel>
+                            <apex:outputField value="{!objAccount[fieldName.FieldPath]}" />
+                        </apex:pageBlockSectionItem> 
+                    </apex:repeat>
+                </apex:repeat>
+                <br/>
+            </apex:pageBlockSection>
+            
+            <!-- End of the first ParentDetail PageBlockSection -->
+           
+            <!-- Begining of the child record Addition Section -->
+           
+            <apex:pageBlockSection title="{!objSetting.Child_Section_Title__c}" columns="1" id="addChildSection" collapsible="false">
+                <apex:pageMessage summary="{!$Label.Add_the_Child_Records}"
+                                            severity="info" rendered="{!! if(createNewSobjectList.size > 0,true,false)}" strength="3"/> 
+                <apex:outputPanel >
+                    <apex:variable var="rowNum" value="{!0}"  />
+                    <apex:pageBlockTable value="{!createNewSobjectList}" var="objParentChildInsertObject" rendered="{!if(createNewSobjectList.size > 0,true,false)}" >
+                        <apex:column headerValue="Action">
+                            <apex:commandLink value="Remove" action="{!removeItem}" id="removeLink2"   status="status" title="Remove this line item" immediate="true" rerender="addChildSection,deleteErrorMessage">
+                                <apex:param value="{!objParentChildInsertObject.iRecNo}" name="pIndex" />
+                            </apex:commandLink>
+                        </apex:column>
+                        <apex:repeat value="{!listChildFieldSetMember}" var="objchildFieldsString" id="repeatId">
+                            <apex:column headerValue="{!objchildFieldsString.Label}">
+                                <apex:inputField value="{!objParentChildInsertObject.objCreateSobject[objchildFieldsString.FieldPath]}" />
+                            </apex:column>
+                        </apex:repeat>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+            </apex:pageBlockSection>
+            
+            <!-- End of the child Record Addtion Section -->
+           
+            <!-- Begining of the Child Record Addition Button Part -->   
+           
+            <div align="center">
+                <apex:outputPanel style="padding-left: 1em;">
+                    <div class="menuButton" id="actions">
+                        <apex:outputPanel layout="none">
+                            <div class="menuButtonButton" id="actionsButton"><span class="menuButtonLabel" id="actionsLabel">Add Rows</span></div>
+                            <div class="menuButtonMenu" id="actionsMenu">
+                                <apex:outputPanel layout="none">
+                                    <apex:commandLink value="1 Row" action="{!createNewChildRecord}" status="status" reRender="addChildSection,deleteErrorMessage" immediate="true">
+                                        <apex:param value="1" name="pAddrowNumber" />
+                                    </apex:commandLink>
+                                    <apex:commandLink value="3 Rows" action="{!createNewChildRecord}" status="status" reRender="addChildSection,deleteErrorMessage" immediate="true">
+                                        <apex:param value="3" name="pAddrowNumber" />
+                                    </apex:commandLink>
+                                    <apex:commandLink value="5 Rows" action="{!createNewChildRecord}" status="status" reRender="addChildSection,deleteErrorMessage" immediate="true">
+                                        <apex:param value="5" name="pAddrowNumber" /> 
+                                    </apex:commandLink>
+                                </apex:outputPanel>
+                            </div>
+                        </apex:outputPanel>
+                    </div>
+                </apex:outputPanel>
+                
+                <script type="text/javascript"> new MenuButton('actions', false); </script> <span style="width:3px"/>
+                <apex:commandButton value="Quick Save" action="{!showInsertedChildRecords}" status="status"  reRender="panelId, addChildSection, deleteErrorMessage" />
+                <apex:commandButton value="Save" action="{!saveChildObject}" />
+                <apex:commandButton value="Cancel" action="{!cancelItem}" />
+            </div>
+           
+           <!-- End of the button Part for the addtion of the records -->
+           
+           <!-- Begining of the child records Deletion part -->
+           
+           <apex:pageBlockSection columns="1" title="{!objSetting.Existing_Child_Records_Title__c}" collapsible="false" id="pageBlockId">
+               <apex:outputPanel id="deleteErrorMessage">
+               		<apex:pageMessages rendered="{!isDeleterMessage}"  />
+               </apex:outputPanel>
+               
+              
+                <apex:actionRegion >
+                 
+                   <apex:outputPanel id="panelId" style="overflow:scroll;height:250px;" layout="block">
+                   
+                   			<apex:pageMessage summary="{!$Label.No_Records_Saved}"
+                                            severity="info" rendered="{!! if(sobjectInsertedChildList.size >0,true,false)}" strength="3"/> 
+                   		 
+                            <apex:pageBlockTable value="{!sobjectInsertedChildList}" var="objParentChildObject" rendered="{! if(sobjectInsertedChildList.size > 0,true,false)}" style="height:20px;">
+                                <apex:column headerValue="Action">
+                                    <apex:commandLink onclick="deleteRecord('{!objParentChildObject.Id}')"   value="Delete" title="Delete this record" oncomplete="return false;"/>
+                                </apex:column>
+                                <apex:repeat value="{!sObjectChildFieldList}" var="objFieldsString">
+                                    <apex:column value="{!objParentChildObject[objFieldsString]}" />
+                                </apex:repeat>
+                            </apex:pageBlockTable>
+               			
+                    </apex:outputPanel>
+                    <apex:outputPanel id="hiddenBlock" rendered="false"></apex:outputPanel>
+                    <apex:actionFunction name="displayDeleteOutput" action="{!displayDeleteChildMessage_QuickSave}" status="status"  reRender="panelId"/>
+                    <apex:actionFunction name="deleteSelectedRecord" action="{!displayDeletionMessage}" status="status"  onComplete="showDeletePanel()" reRender="deleteErrorMessage" >
+                     <apex:param value=" " name="pErrorMessage"  />
+                    </apex:actionFunction> 
+                </apex:actionRegion>
+           </apex:pageBlockSection>
+           
+           <!-- End of the child Deletion part -->
+       	  
+        </apex:pageBlock>
+        
+        <!--  For display the waiting status  of the page  -->
+        
+        <apex:outputpanel >
+            <apex:actionstatus id="status">
+                <apex:facet name="start">
+                    <div class="waitingSearchDiv" id="el_loading"  style="background-color: #fbfbfb; height: 100%; opacity: 0.65; width: 100%;">
+                        <div class="waitingHolder" style="top:center; width: 91px;">
+                            <img class="waitingImage" src="/img/loading.gif" title="Please Wait..." />
+                            <span class="waitingDescription">{!$Label.Wating_status}</span>
+                        </div>
+                    </div>
+                </apex:facet>
+            </apex:actionstatus>
+        </apex:outputpanel>
+        
+        <!-- End of the waiting status of the page -->
+        
+    </apex:form>
+    
+    <script type="text/javascript">
+        
+        j$ = jQuery.noConflict();
+       
+        // A function to display the child section when the record is deleted form the page.
+        function showDeletePanel(){
+        	
+        	displayDeleteOutput();
+        
+        }
+       
+        // A function to delete the record from the child section and display the error message .
+    	function deleteRecord(pDelRecordId){
+            var errorMessage ;
+            
+            if(confirm("{!$Label.Delete_childRecord_Confrim}") == true){               
+                 Visualforce.remoting.Manager.invokeAction(
+				'{!$RemoteAction.Addmultiplechildrecordscontroller.deleteChildRecord}',
+				 pDelRecordId,
+				'{!objSetting.Child_Sobject_Name__c}', 
+				 function(result, event) {
+					if (event.status) {
+					   errorMessage = (result != 'true')?result:'{!$Label.Record_Delete_Confirmation}'
+					   deleteSelectedRecord(errorMessage+'');
+					}
+				}, {escape: true}
+			);
+           } //if  
+          
+           return false;
+    	}
+    </script>
+</apex:page>
