@@ -139,7 +139,6 @@ private class TestCsvDownload {
      public Static Account populateAccount(){
          Account objAccount = new Account(Name = 'Test Account', 
                                          Phone = '020334455', 
-                                         CustomerPriority__c = 'High', 
                                          BillingStreet = 'Test',
                                          BillingCountry = 'India',  
                                          BillingCity = 'Pune');

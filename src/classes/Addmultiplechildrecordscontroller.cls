@@ -581,9 +581,6 @@ public with sharing class Addmultiplechildrecordscontroller {
                         }
                         objPageReference = new pageReference('/' +strSobjectId);
                         objPageReference.setRedirect(true);
-                else {
-                    Database.Error[] errors = saveResult[0].getErrors();
-                    showError(saveResult[0].get)
                 } //if
             } Catch(DMLException ex){
                     ShowError(ex.getMessage());
