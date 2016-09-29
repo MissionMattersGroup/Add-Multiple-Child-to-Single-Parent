@@ -3,12 +3,16 @@
  * the parent object .Based on the Parent object, child object that are  been fetched from the
  * Setting__c object which contains this information .
  *
- * Initial Draft                Author               Date
- * Version 1.0                Dhirendra             08/27/2014
- * Version 1.1                Geeta Kushwaha        03/29/2016
+ * Initial Draft                Author               Date           Comment 
+ * Version 1.0                Dhirendra             08/27/2014     Initial Draft
+ * Version 1.1                Geeta Kushwaha        03/29/2016     Add the clone link functionality
+ *                                                                 which creates duplicate row  
+ * Version 1.2                Geeta Kushwaha        05/12/2016     Added help text functionality and 
+ *                                                                 resolved the issues 
  *
  */
 public with sharing class Addmultiplechildrecordscontroller {
+
 
         // Static final variables
         private static final String PARAM_APP_SETTING_ID = 'po';
@@ -53,6 +57,7 @@ public with sharing class Addmultiplechildrecordscontroller {
         public Settings__c objSetting {get; set; }
         public static Settings__c objSettingForDelete;
         public Map<String,String> strChildId;
+        public string objChildConId {get; set; }
 
         public List<sObject> sObjectChildList;
         public List<String> sObjectfieldList;
@@ -63,22 +68,31 @@ public with sharing class Addmultiplechildrecordscontroller {
         public Set<Id> setInsertedchildId;
         public Integer rowNumber;
         public Integer rowIndex {get; set; }
+        // assignedRowNumber is gives the row number when clicked on any particular row
         public Integer assignedRowNumber {get; set; } 
         private sObject objChildSobject;
         private sObject objChildSobjectTemp;
         public List <childSobjectEditWrapper> childDataList {get; set; }
-
+    
+        public Map<String,String> mapChildFieldApi_HelpText{get;set;}       
+        public Map<String,String> mapParentFieldApi_HelpText{get;set;}
+        
+        
         //Constructor
-        public Addmultiplechildrecordscontroller(){
+        public Addmultiplechildrecordscontroller (){
             strChildId = Apexpages.currentPage().getParameters();
             childDataList = new List<childSobjectEditWrapper>();
+            
+            mapChildFieldApi_HelpText = new Map<String,String>();
+            mapParentFieldApi_HelpText = new Map<String, String>();
+            
             init();
         }
 
         /**
          * A method that call the methods that are to be needed when the page is Loaded.
          **/
-        public void init(){
+        public void init() {
             isPageVisible = true;
             isFileVisible = true;
             //Display an error message if invalid input parameters are provided to the page
@@ -116,14 +130,14 @@ public with sharing class Addmultiplechildrecordscontroller {
                 retrieveChildFieldset(NULL);
 
                 if(Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ) !=null) {
-                        objChildSobject = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,true);
+                        objChildSobject = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,false);
                 }
 
                 createNewChildRecord();
-                childDataList = getChildData ();
+                childDataList = getChildData (); // list to display the child object records in 3rd section
             }
         }
-
+        
         /**
          *  A method to display the error messages that are passed down to the method as parameters
          *  Parameters:
@@ -171,17 +185,25 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             Schema.FieldSet fieldSetObj =
                     retrieveFieldSetObj(objSetting.Parent_Sobject_Name__c,objSetting.Parent_Fieldset_Name__c);
-
+            
             if(fieldSetObj != null && fieldSetObj.getFields() != null && !fieldSetObj.getFields().IsEmpty()) {
 
                 listparentFieldSetMember = fieldSetObj.getFields();
-
+                
                 for(Schema.FieldSetMember objFields : fieldSetObj.getFields()) {
 
                         strFieldValue = String.isBlank(strFieldValue) ?
                                         objFields.getFieldPath() : strFieldValue + ' , ' + objFields.getFieldPath();
                         sObjectfieldList.add(objFields.getFieldPath());
+                        
                 } //for
+                
+                if(!sObjectfieldList.isEmpty()){
+                    // Call createChildMapFieldwithHelpText method to print map on page
+                    mapParentFieldApi_HelpText = createChildMapFieldwithHelpText(objSetting.Parent_Sobject_Name__c, sObjectfieldList);
+                    
+                }
+                    
                 strQuery =
                         generateQueryString(objSetting.Parent_Sobject_Name__c,
                                             strFieldValue.removeEnd(','),
@@ -195,7 +217,38 @@ public with sharing class Addmultiplechildrecordscontroller {
                 }
             } //if
         }
-
+        /**
+         *  A method to form a map of API names of fields and HelpText available in fieldSet
+         *  Parameters: Object and List of API names of fields
+         *  strObjectName : Object
+         *  lstSobjectfieldApi : List of API names of fields
+         **/
+        public Map<String,String> createChildMapFieldwithHelpText(string strObjectName,List<string> lstSobjectfieldApi) {
+            
+            // Schema call to get Object information
+            Schema.DescribeSObjectResult obj = Schema.getGlobalDescribe().get(strObjectName).getDescribe();
+            
+            // Map to store API names as Key and HelpText as Value
+            Map<String,String> mapFieldApi_HelpText = new Map<String,String>();
+            
+            // Iterate on API names of fields
+            for(String strFieldApi : lstSobjectfieldApi) {
+                
+                //Schema call to get information of each field
+                Schema.DescribeFieldResult fieldResult = obj.Fields.getMap().get(strFieldApi).getDescribe();
+                
+                if(fieldResult.getInlinehelpText() != null) {
+                    // Put HelpText for respective field in Map
+                    mapFieldApi_HelpText.put(strFieldApi,fieldResult.getInlinehelpText());
+                }
+                else {
+                    mapFieldApi_HelpText.put(strFieldApi,'');
+                }
+             
+            }   
+        
+        return mapFieldApi_HelpText;
+       }
         /**
          *  A method to add the new Instance of the child record to the  Table of inserting records on the page.
          *  on initialization of the vf page .
@@ -210,16 +263,18 @@ public with sharing class Addmultiplechildrecordscontroller {
             if(objSetting.Child_Sobject_Name__c != null && objSetting.Child_Sobject_Name__c != '') {
 
                     SObjectType sobjectType = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c);
+                    
                     if(sobjectType != null ) {
                         Map<String,Schema.SObjectField> mfields = sobjectType.getDescribe().fields.getMap();
                         if(mfields.containsKey(objSetting.Related_Field_API_Name__c)) {
 
                             for(Integer i = 0; i < Integer.valueOf(strAddNoRecords); i++) {
-                                    objChildSobjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,true);
+                                    objChildSobjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,false);
                                     
                                 for(integer j=0; j<listChildFieldSetMember.size(); j++) {
                                         Schema.DisplayType fieldType = listChildFieldSetMember[j].getType();
                                         
+                                        //checks if the data type of the field in the URL parameter is Date, Datetime, Currency, Double, Integer
                                         if(strChildId.containsKey(listChildFieldSetMember[j].FieldPath))
                                         {
                                             if(fieldType == Schema.Displaytype.Date) {
@@ -247,7 +302,6 @@ public with sharing class Addmultiplechildrecordscontroller {
                                         }
                                 }
                                 createNewSobjectList.add(new childSobjectWrapper(++rowNumber,objChildSobjectTemp));
-                                    
                             }
                         }else{
                                 isPageVisible = false;
@@ -257,11 +311,13 @@ public with sharing class Addmultiplechildrecordscontroller {
             } //if
             isFileVisible = true;
         }
-        /**
-         *  This method creates a new cloned row with the same data when clicked on any row
-         **/
-        public PageReference addCloneChildRecord(){
-
+        
+        /*
+        * Description: This method creates a new cloned row with the same data when clicked on any row
+        * Input: 
+        * Output: Creates a new duplicate row
+         */
+        public PageReference addCloneChildRecord() {
             if(objSetting.Child_Sobject_Name__c != null && objSetting.Child_Sobject_Name__c != '') {
 
                 SObjectType sobjectType = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c);
@@ -271,16 +327,14 @@ public with sharing class Addmultiplechildrecordscontroller {
                     if(mfields.containsKey(objSetting.Related_Field_API_Name__c)) {
                         if(assignedRowNumber != null){
                         
-                            objChildSobjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,true);
-
+                            objChildSobjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,false);
                             for(integer j=0; j<listChildFieldSetMember.size(); j++) {
-
                                 Schema.DisplayType fieldType = listChildFieldSetMember[j].getType();
                                 objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,createNewSobjectList[assignedRowNumber-1].objCreateSobject.get(listChildFieldSetMember[j].FieldPath));
-
+                                
                             }
                             createNewSobjectList.add(new childSobjectWrapper(++rowNumber, objChildSobjectTemp));
-
+                            
                         }
                     }
                 }
@@ -320,10 +374,12 @@ public with sharing class Addmultiplechildrecordscontroller {
             } //if
         }
 
+        
+        
+        
         /**
          *  Fetch the Fields or list of the Fields from the child object that are related to the Parent object.
          **/
-
         public void retrieveChildFieldset(set<Id> setChildIds) {
 
             String strFieldValue = '';
@@ -345,8 +401,16 @@ public with sharing class Addmultiplechildrecordscontroller {
                                         strFieldValue + COMMA + objFields.getFieldPath();
 
                         sObjectChildfieldList.add(objFields.getFieldPath());
+                        
 
                     } //for
+                    
+                    
+                    if(!sObjectChildfieldList.isEmpty()){
+                        // Call createChildMapFieldwithHelpText method to print map on page
+                        mapChildFieldApi_HelpText = createChildMapFieldwithHelpText(objSetting.Child_Sobject_Name__c, sObjectChildfieldList);
+                    }
+                    
                     strQuery = generateQueryString(objSetting.Child_Sobject_Name__c,
                                                    strFieldValue.removeEnd(','),
                                                    objSetting.Related_Field_API_Name__c,
@@ -395,10 +459,12 @@ public with sharing class Addmultiplechildrecordscontroller {
         public void editChildFieldset()
         {
             if (rowIndex != null && lstChildWrpMap.containsKey(rowIndex)) {
-                if (!lstChildWrpMap.get (rowIndex).editRecord) {
-                        lstChildWrpMap.get (rowIndex).editRecord = true;
+                if (!lstChildWrpMap.get(rowIndex).editRecord) {
+                    lstChildWrpMap.get(rowIndex).editRecord = true;
                 }
             }
+            getChildData();
+            isDeleterMessage = false;
         }
 
 
@@ -406,20 +472,59 @@ public with sharing class Addmultiplechildrecordscontroller {
          * Save the Fields or list of the Fields from the child object that are related to the Parent object.
          *
          */
-
         public void saveChildFieldset() {
             if (rowIndex != null && lstChildWrpMap.containsKey(rowIndex))  {
                 lstChildWrpMap.get (rowIndex).editRecord = false;
                 update lstChildWrpMap.get(rowIndex).objChildSobject;
             }
         }
+        public void cancelChildContact(Integer rowIndex) {
+           
+            if(rowIndex != null && rowIndex >= 0){
+                String strFieldValue = '';
+                String strQuery = '';
+                sObjectChildfieldList = new List<String>();
+                listChildFieldSetMember = new List<Schema.FieldSetMember>();
+                Schema.FieldSet fieldSetObj = retrieveFieldSetObj(objSetting.Child_Sobject_Name__c,objSetting.Child_Fieldset_Name__c);
+                try {
+                    if(fieldSetObj != null && fieldSetObj.getFields() != null && !fieldSetObj.getFields().IsEmpty()) {
+                        listChildFieldSetMember = fieldSetObj.getFields();
+                        for(Schema.FieldSetMember objFields : fieldSetObj.getFields()) {
 
+                            strFieldValue = String.isBlank(strFieldValue) ?
+                                            objFields.getFieldPath() :
+                                            strFieldValue + COMMA + objFields.getFieldPath();
+
+                            sObjectChildfieldList.add(objFields.getFieldPath());
+                            
+
+                        } //for
+                        strQuery = generateQueryString(objSetting.Child_Sobject_Name__c,
+                                                       strFieldValue.removeEnd(','),
+                                                       objSetting.Related_Field_API_Name__c,
+                                                       strSobjectId);
+                        
+                        strQuery += ' AND ID =\''+ childDataList[rowIndex].objChildSobject.Id + '\'';
+                        Sobject cancelObj = Database.Query(strQuery);
+                        childDataList[rowIndex].editRecord = false;
+                        childDataList[rowIndex].objChildSobject = cancelObj;
+                                                  
+                    }
+                }   
+                catch(System.QueryException queryException) {
+                        showError(queryException.getMessage());
+                } 
+            }
+            
+        }
         public void cancelChildFieldset() {
             if (rowIndex != null && lstChildWrpMap.containsKey(rowIndex))  {
-                lstChildWrpMap.get (rowIndex).editRecord = false;
-                retrieveChildFieldset(NULL);
+                lstChildWrpMap.get(rowIndex).editRecord = false;
+                cancelChildContact(rowIndex);
+                
             }
         }
+        
         /**
          * It returns the fielset object based on the object and FieldSetName as a parameter
          * to the method
@@ -445,7 +550,7 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             return sobjectDescribeResult.FieldSets.getMap().get(pstrFieldSetName);
         }
-
+        
         /**
          *  A method to save the record for inserting the child records
          **/
@@ -476,6 +581,9 @@ public with sharing class Addmultiplechildrecordscontroller {
                         }
                         objPageReference = new pageReference('/' +strSobjectId);
                         objPageReference.setRedirect(true);
+                else {
+                    Database.Error[] errors = saveResult[0].getErrors();
+                    showError(saveResult[0].get)
                 } //if
             } Catch(DMLException ex){
                     ShowError(ex.getMessage());
@@ -483,7 +591,7 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             return objPageReference;
         }
-
+        
         /**
          *  A method that save the records that are present in the savelist as the child
          *  of the parent object
@@ -500,6 +608,7 @@ public with sharing class Addmultiplechildrecordscontroller {
             sobjectInsertedChildList = new List<Sobject>();
             sObjectChildfieldList = new List<String>();
             saveChildObject();
+            rowNumber = 0;
             createNewSobjectList = new List<childSobjectWrapper>();
             createNewChildRecord();
             isVisible = false;
@@ -509,6 +618,8 @@ public with sharing class Addmultiplechildrecordscontroller {
         public PageReference quickSaveChildRecords(){
             quickSaveRecords();
             retrieveChildFieldset(NULL);
+            // list with updated newly added records, helps to rerender and display records after quick save immediately
+            childDataList = getChildData (); 
             return null;
         }
 
@@ -561,12 +672,18 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             createNewSobjectList.remove(
                     mapRemoveRecord.get(Integer.valueOf(apexpages.currentpage().getparameters().get(PARAM_INDEX))));
-            isDeleterMessage = true;
+            Integer startIndex = Integer.valueOf(apexpages.currentpage().getparameters().get(PARAM_INDEX));
+
+            for(Integer i = 0; i < createNewSobjectList.Size(); i++) {
+            
+                createNewSobjectList[i].iRecNo = i+1;
+                
+            }
             isFileUploaded = false;
-            --rowNumber;
+            rowNumber--;
+
             return null;
         }
-
         /**
          * A method that is called when clicked on the Cancel button present on the
          * page Which redirects the user to the previous page from which the page was called.
@@ -602,6 +719,8 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             retrieveChildFieldset(NULL);
             isDeleterMessage = true;
+            childDataList = getChildData ();
+            
         }
 
         public void displayDeleteChildMessage_QuickSave(){
@@ -715,7 +834,6 @@ public with sharing class Addmultiplechildrecordscontroller {
                                         }
                                 }
                                 isFileUploaded = true;
-                                //listAccountToInsert.add(sObjectToInsert);
                                 if(createNewSobjectList != NULL && createNewSobjectList.size() > 0) {
                                     if(rowNumber == 1) {
                                             createNewSobjectList.remove(0);
@@ -783,6 +901,4 @@ public with sharing class Addmultiplechildrecordscontroller {
             public sObject objChildSobject {get; set; }
 
         } //childSobjectEditWrapper ends
-
-
 }
