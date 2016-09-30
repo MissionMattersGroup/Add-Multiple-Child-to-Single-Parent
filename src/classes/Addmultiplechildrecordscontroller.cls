@@ -52,6 +52,7 @@ public with sharing class Addmultiplechildrecordscontroller {
         public Boolean isDeleterMessage {get; set; }
         public Boolean isFileVisible {get; set; }
         public Boolean isFileUploaded {get; set; }
+        public Boolean renderRelatedAPIField {get; set;}
         public List<childSobjectEditWrapper> lstChildWrp {get; set; }
         public Map<Integer, childSobjectEditWrapper> lstChildWrpMap {get; set; }
         public Settings__c objSetting {get; set; }
@@ -110,6 +111,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                 isVisible = false;
                 isDeleterMessage = false;
                 isFileUploaded = false;
+                renderRelatedAPIField = true;
                 rowNumber = 0;
                 strAddNoRecords = '';
                 objSetting = new Settings__c();
@@ -131,6 +133,14 @@ public with sharing class Addmultiplechildrecordscontroller {
 
                 if(Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ) !=null) {
                         objChildSobject = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,false);
+
+                        //determine if we need to render the Related_Field_API_Name__c for new rows
+                        for (Schema.FieldSetMember fsm : listChildFieldSetMember) {
+                            if (fsm.getFieldPath().equalsIgnoreCase(objSetting.Related_Field_API_Name__c)) {
+                                //related field defined in field set, do not render column
+                                renderRelatedAPIField = false;
+                            }
+                        }
                 }
 
                 createNewChildRecord();
@@ -301,6 +311,9 @@ public with sharing class Addmultiplechildrecordscontroller {
                                                 objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath, objChildSobject.get(listChildFieldSetMember[j].FieldPath));
                                         }
                                 }
+
+                                //populate master lookup with parent id
+                                objChildSobjectTemp.put(objSetting.Related_Field_API_Name__c, strSobjectId);
                                 createNewSobjectList.add(new childSobjectWrapper(++rowNumber,objChildSobjectTemp));
                             }
                         }else{
@@ -561,7 +574,7 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             if(createNewSobjectList != null && !createNewSobjectList.IsEmpty()) {
                 for(childSobjectWrapper objcreateNewSObject : createNewSobjectList) {
-                    objcreateNewSObject.objCreateSobject.put(objSetting.Related_Field_API_Name__c, strSobjectId);
+                    //objcreateNewSObject.objCreateSobject.put(objSetting.Related_Field_API_Name__c, strSobjectId);
                     sObjectToInsert.add(objcreateNewSObject.objCreateSobject);
                 }
 

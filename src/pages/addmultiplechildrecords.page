@@ -100,7 +100,11 @@
 
         .tooltip:hover .tooltiptext {
             visibility: visible;
-        }       
+        }
+
+        .related-api-field {
+            display: none !important;
+        }
 </style>
     
     <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" />
@@ -159,6 +163,12 @@
                 <apex:outputPanel >
                     <apex:variable var="rowNum" value="{!0}"  />
                     <apex:pageBlockTable value="{!createNewSobjectList}" var="objParentChildInsertObject" rendered="{!if(createNewSobjectList.size > 0,true,false)}" >
+                        
+                        <!-- Only render the Related API field is it is not part of the field set for the child -->
+                        <apex:column rendered="{!renderRelatedAPIField}" headerClass="related-api-field" styleClass="related-api-field">
+                            <apex:inputField value="{!objParentChildInsertObject.objCreateSobject[objSetting.Related_Field_API_Name__c]}" />
+                        </apex:column>
+                        
                         <apex:column headerValue="Action">
                             <apex:commandLink value="Remove" action="{!removeItem}" id="removeLink2"   status="status" title="Remove this line item" immediate="true">
                                 <apex:param value="{!objParentChildInsertObject.iRecNo}" name="pIndex" />
