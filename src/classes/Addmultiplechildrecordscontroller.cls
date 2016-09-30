@@ -49,6 +49,7 @@ public with sharing class Addmultiplechildrecordscontroller {
         public String[] strHeaderRow {get; set; }
         public Boolean isVisible {get; set; }
         public Boolean isPageVisible {get; set; }
+        public Boolean isSaveMessage {get; set; }
         public Boolean isDeleterMessage {get; set; }
         public Boolean isFileVisible {get; set; }
         public Boolean isFileUploaded {get; set; }
@@ -108,6 +109,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                 strReturnURL = ApexPages.currentPage().getParameters().get(PARAM_RETURNURL);
                 strSobjectId = ApexPages.currentPage().getParameters().get(PARAM_PARENT_ID);
                 isVisible = false;
+                isSaveMessage = false;
                 isDeleterMessage = false;
                 isFileUploaded = false;
                 rowNumber = 0;
@@ -384,6 +386,7 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             String strFieldValue = '';
             String strQuery = '';
+            isSaveMessage = false;
             isDeleterMessage = false;
             sobjectExistingChildList = new List<Sobject>();
             sobjectInsertedChildList = new List<Sobject>();
@@ -464,6 +467,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                 }
             }
             getChildData();
+            isSaveMessage = false;
             isDeleterMessage = false;
         }
 
@@ -555,6 +559,7 @@ public with sharing class Addmultiplechildrecordscontroller {
          *  A method to save the record for inserting the child records
          **/
         public PageReference saveChildObject(){
+            isSaveMessage = true;
             PageReference objPageReference;
             setInsertedchildId = new Set<Id>();
             List<Sobject> sObjectToInsert = new List<Sobject>();
@@ -575,14 +580,22 @@ public with sharing class Addmultiplechildrecordscontroller {
                 Database.Saveresult[] saveResult = Database.insert(sObjectToInsert);
                     
 
-                if(saveResult[0].isSuccess()) {
+                Database.SaveResult sr = saveResult[0];
+                if(sr.isSuccess()) {
                         for(sObject sObj : sObjectToInsert) {
                                 setInsertedchildId.add(String.valueOf(sObj.get('Id')));
                         }
                         objPageReference = new pageReference('/' +strSobjectId);
                         objPageReference.setRedirect(true);
+                }
+                else {
+                    Database.Error[] errors = sr.getErrors();
+                    for (Database.Error err : errors) {
+                        showError(err.getMessage());
+                    }
                 } //if
-            } Catch(DMLException ex){
+            }
+            catch(DMLException ex){
                     ShowError(ex.getMessage());
             }
 
@@ -705,6 +718,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                                       new ApexPages.Message(ApexPages.Severity.INFO, errorMessage) :
                                               new ApexPages.Message(ApexPages.Severity.ERROR, errorMessage);
             ApexPages.addMessage(myMsg);
+            isSaveMessage = false;
             isDeleterMessage = true;
         }
 
@@ -715,6 +729,7 @@ public with sharing class Addmultiplechildrecordscontroller {
         public void displayDeleteChildMessage(){
 
             retrieveChildFieldset(NULL);
+            isSaveMessage = false;
             isDeleterMessage = true;
             childDataList = getChildData ();
             
@@ -723,6 +738,7 @@ public with sharing class Addmultiplechildrecordscontroller {
         public void displayDeleteChildMessage_QuickSave(){
 
             retrieveChildFieldset(setInsertedchildId);
+            isSaveMessage = false;
             isDeleterMessage = true;
         }
 
@@ -779,6 +795,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                                                         }
                                                         catch(Exception e) {
                                                             isVisible = true;
+                                                            isSaveMessage = false;
                                                             isDeleterMessage = false;
                                                             ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'The column format must be <b> mm/dd/yyyy </b>for the Date field <b>'+listChildFieldSetMember[iField].getFieldPath()+ '</b> in uploaded csv file.');
                                                             ApexPages.addMessage(errorMessage);
@@ -791,6 +808,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                                                         }
                                                         catch(Exception e) {
                                                             isVisible = true;
+                                                            isSaveMessage = false;
                                                             isDeleterMessage = false;
                                                             ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'The column format must be <b> mm/dd/yyyy hh:mm AM/PM </b>for the DateTime field <b>'+listChildFieldSetMember[iField].getFieldPath()+ '</b> in uploaded csv file.');
                                                             ApexPages.addMessage(errorMessage);
@@ -810,6 +828,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                                                         }
                                                         catch(Exception e) {
                                                             isVisible = true;
+                                                            isSaveMessage = false;
                                                             isDeleterMessage = false;
                                                             ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
                                                             ApexPages.addMessage(errorMessage);
@@ -822,6 +841,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                                                         }
                                                         catch(Exception e){
                                                             isVisible = true;
+                                                            isSaveMessage = false;
                                                             isDeleterMessage = false;
                                                             ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
                                                             ApexPages.addMessage(errorMessage);
@@ -848,6 +868,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                         }
                         if(createNewSobjectList.size() < 1) {
                             isVisible = true;
+                            isSaveMessage = false;
                             isDeleterMessage = false;
                             ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'Empty file found.');
                             ApexPages.addMessage(errorMessage);
@@ -856,6 +877,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                 }
                     else {
                             isVisible = true;
+                            isSaveMessage = false;
                             isDeleterMessage = false;
                             if(!(createNewSobjectList != NULL && createNewSobjectList.size() > 0)) {
                                     createNewChildRecord();
