@@ -160,6 +160,7 @@
                                             severity="info" rendered="{!! if(createNewSobjectList.size > 0, true, false)}" strength="3"/> 
                 <apex:pageMessage summary="{!$Label.File_Uploaded_Message} ({!createNewSobjectList.size} {!if(createNewSobjectList.size == 1,'Record','Records')})."
                                             severity="info" rendered="{!isFileUploaded}" strength="3"/> 
+                <apex:pageMessages rendered="{!isSaveMessage}" />
                 <apex:outputPanel >
                     <apex:variable var="rowNum" value="{!0}"  />
                     <apex:pageBlockTable value="{!createNewSobjectList}" var="objParentChildInsertObject" rendered="{!if(createNewSobjectList.size > 0,true,false)}" >
