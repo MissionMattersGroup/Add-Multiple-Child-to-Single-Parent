@@ -574,7 +574,6 @@ public with sharing class Addmultiplechildrecordscontroller {
 
             if(createNewSobjectList != null && !createNewSobjectList.IsEmpty()) {
                 for(childSobjectWrapper objcreateNewSObject : createNewSobjectList) {
-                    //objcreateNewSObject.objCreateSobject.put(objSetting.Related_Field_API_Name__c, strSobjectId);
                     sObjectToInsert.add(objcreateNewSObject.objCreateSobject);
                 }
 
