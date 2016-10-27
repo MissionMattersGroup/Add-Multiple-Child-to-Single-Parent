@@ -642,6 +642,7 @@ public with sharing class Addmultiplechildrecordscontroller {
             retrieveChildFieldset(NULL);
             // list with updated newly added records, helps to rerender and display records after quick save immediately
             childDataList = getChildData (); 
+            isSaveMessage = true;
             return null;
         }
 
