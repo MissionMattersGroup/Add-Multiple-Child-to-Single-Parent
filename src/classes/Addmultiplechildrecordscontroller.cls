@@ -599,6 +599,8 @@ public with sharing class Addmultiplechildrecordscontroller {
                         }
                         objPageReference = new pageReference('/' +strSobjectId);
                         objPageReference.setRedirect(true);
+                        createNewSobjectList = new List<childSobjectWrapper>();
+                        createNewChildRecord();
                 }
                 else {
                     Database.Error[] errors = sr.getErrors();
@@ -631,8 +633,6 @@ public with sharing class Addmultiplechildrecordscontroller {
             sObjectChildfieldList = new List<String>();
             saveChildObject();
             rowNumber = 0;
-            createNewSobjectList = new List<childSobjectWrapper>();
-            createNewChildRecord();
             isVisible = false;
             isDeleterMessage = false;
         }
@@ -642,6 +642,7 @@ public with sharing class Addmultiplechildrecordscontroller {
             retrieveChildFieldset(NULL);
             // list with updated newly added records, helps to rerender and display records after quick save immediately
             childDataList = getChildData (); 
+            isSaveMessage = true;
             return null;
         }
 
