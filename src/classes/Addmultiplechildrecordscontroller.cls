@@ -348,6 +348,7 @@ public with sharing class Addmultiplechildrecordscontroller {
                                 objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,createNewSobjectList[assignedRowNumber-1].objCreateSobject.get(listChildFieldSetMember[j].FieldPath));
                                 
                             }
+                            objChildSobjectTemp.put(objSetting.Related_Field_API_Name__c, strSobjectId);
                             createNewSobjectList.add(new childSobjectWrapper(++rowNumber, objChildSobjectTemp));
                             
                         }
