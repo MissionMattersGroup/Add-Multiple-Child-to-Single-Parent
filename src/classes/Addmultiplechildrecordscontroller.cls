@@ -1,18 +1,50 @@
+/**
+ * Description: A controller to control the functionality of dynamically adding the child records to
+ * the parent object .Based on the Parent object, child object that are  been fetched from the
+ * Setting__c object which contains this information .
+ *
+ * Initial Draft                Author               Date           Comment 
+ * Version 1.0                Dhirendra             08/27/2014     Initial Draft
+ * Version 1.1                Geeta Kushwaha        03/29/2016     Add the clone link functionality
+ *                                                                 which creates duplicate row  
+ * Version 1.2                Geeta Kushwaha        05/12/2016     Added help text functionality and 
+ *                                                                 resolved the issues 
+ *
+ */
 public with sharing class Addmultiplechildrecordscontroller {
 
-        public List<SObject> SObjectList {get; set; }
-        public List<String> SObjectChildfieldList {get; set; }
-        public List<SObject> SObjectExistingChildList {get; set; }
-        public List<SObject> SObjectInsertedChildList {get; set; }
+
+        // Static final variables
+        private static final String PARAM_APP_SETTING_ID = 'po';
+        private static final String PARAM_PARENT_ID = 'pid';
+        private static final String PARAM_RETURNURL = 'pretURL';
+        private static final String PARAM_ROW_NUMBER = 'pAddrowNumber';
+        private static final String PARAM_INDEX = 'pIndex';
+        private static final String PARAM_DELETEDERRORMSG = 'pErrorMessage';
+        private static final String STR_SELECT = 'SELECT';
+        private static final String STR_FROM = 'FROM';
+        private static final String STR_WHERE = 'WHERE';
+        private static final String WHITESPACE = ' ';
+        private static final String COMMA = ',';
+        private static final String STR_AND = 'AND';
+        private static final String STR_ID = 'ID';
+        private static final String STR_IN = 'IN';
+        private static final String STR_COLON = ':';
+
+        // Variables
+        public List<sObject> sObjectList {get; set; }
+        public List<String> sObjectChildfieldList {get; set; }
+        public List<sObject> sobjectExistingChildList {get; set; }
+        public List<sObject> sobjectInsertedChildList {get; set; }
         public List<Schema.FieldSetMember> listparentFieldSetMember {get; set; }
         public List<Schema.FieldSetMember> listChildFieldSetMember {get; set; }
-        public List<ChildSObjectWrapper> createNewSObjectList {get; set; }
+        public List<childSobjectWrapper> createNewSobjectList {get; set; }
         public String strChildRecId { get; set { strChildRecId = value; } }
         public String strAddNoRecords {get; set; }
         public String strHeaderRowValue {get; set; }
-        public String render {get; set; }
+        public string render {get; set; }
         public Blob csvFileBody {get; set; }
-        public String csvAsString {get; set; }
+        public string csvAsString {get; set; }
         public String[] csvFileLines {get; set; }
         public String[] strHeaderRow {get; set; }
         public Boolean isVisible {get; set; }
@@ -22,48 +54,61 @@ public with sharing class Addmultiplechildrecordscontroller {
         public Boolean isFileVisible {get; set; }
         public Boolean isFileUploaded {get; set; }
         public Boolean renderRelatedAPIField {get; set;}
-        public List<ChildSObjectEditWrapper> lstChildWrp {get; set; }
-        public Map<Integer, ChildSObjectEditWrapper> lstChildWrpMap {get; set; }
+        public List<childSobjectEditWrapper> lstChildWrp {get; set; }
+        public Map<Integer, childSobjectEditWrapper> lstChildWrpMap {get; set; }
         public Settings__c objSetting {get; set; }
         public static Settings__c objSettingForDelete;
-        public Map<String, String> paramMap;
-        public String objChildConId {get; set; }
-        public List<SObject> SObjectChildList;
-        public List<String> SObjectfieldList;
+        public Map<String,String> strChildId;
+        public string objChildConId {get; set; }
+
+        public List<sObject> sObjectChildList;
+        public List<String> sObjectfieldList;
         public String strParentId;
         public String strFieldsetObjectAssociationId;
         public String strReturnURL;
-        public String strSObjectId;
+        public String strSobjectId;
         public Set<Id> setInsertedchildId;
         public Integer rowNumber;
         public Integer rowIndex {get; set; }
-        public Integer assignedRowNumber {get; set; }
-        private SObject objChildSObject;
-        private SObject objChildSObjectTemp;
-        public List<ChildSObjectEditWrapper> childDataList {get; set; }
-        public Map<String, String> mapChildFieldApi_HelpText{get;set;}
-        public Map<String, String> mapParentFieldApi_HelpText{get;set;}
-
-        public Addmultiplechildrecordscontroller () {
-            paramMap = Apexpages.currentPage().getParameters();
-            childDataList = new List<ChildSObjectEditWrapper>();
-            mapChildFieldApi_HelpText = new Map<String, String>();
+        // assignedRowNumber is gives the row number when clicked on any particular row
+        public Integer assignedRowNumber {get; set; } 
+        private sObject objChildSobject;
+        private sObject objChildSobjectTemp;
+        public List <childSobjectEditWrapper> childDataList {get; set; }
+    
+        public Map<String,String> mapChildFieldApi_HelpText{get;set;}       
+        public Map<String,String> mapParentFieldApi_HelpText{get;set;}
+        
+        
+        //Constructor
+        public Addmultiplechildrecordscontroller (){
+            strChildId = Apexpages.currentPage().getParameters();
+            childDataList = new List<childSobjectEditWrapper>();
+            
+            mapChildFieldApi_HelpText = new Map<String,String>();
             mapParentFieldApi_HelpText = new Map<String, String>();
+            
             init();
         }
 
+        /**
+         * A method that call the methods that are to be needed when the page is Loaded.
+         **/
         public void init() {
             isPageVisible = true;
             isFileVisible = true;
-            if(String.isBlank(ApexPages.currentPage().getParameters().get('po'))||
-               String.isBlank(ApexPages.currentPage().getParameters().get('pretURL')) ||
-               String.isBlank(ApexPages.currentPage().getParameters().get('pid'))) {
+            //Display an error message if invalid input parameters are provided to the page
+            if(String.isBlank(ApexPages.currentPage().getParameters().get(PARAM_APP_SETTING_ID))||
+               String.isBlank(ApexPages.currentPage().getParameters().get(PARAM_RETURNURL)) ||
+               String.isBlank(ApexPages.currentPage().getParameters().get(PARAM_PARENT_ID))) {
                     isPageVisible = false;
-                    showError('Inappropriate input prameters provided. Please provide valid input parameters to continue viewing this page.');
+                    showError(Label.ErrorMessage);
+
             } else {
-                strFieldsetObjectAssociationId = ApexPages.currentPage().getParameters().get('po');
-                strReturnURL = ApexPages.currentPage().getParameters().get('pretURL');
-                strSObjectId = ApexPages.currentPage().getParameters().get('pid');
+                //Initialize the variables only if the appropriate input parameters are provided to the page
+                strFieldsetObjectAssociationId = ApexPages.currentPage().getParameters().get(PARAM_APP_SETTING_ID);
+                strReturnURL = ApexPages.currentPage().getParameters().get(PARAM_RETURNURL);
+                strSobjectId = ApexPages.currentPage().getParameters().get(PARAM_PARENT_ID);
                 isVisible = false;
                 isSaveMessage = false;
                 isDeleterMessage = false;
@@ -72,121 +117,224 @@ public with sharing class Addmultiplechildrecordscontroller {
                 rowNumber = 0;
                 strAddNoRecords = '';
                 objSetting = new Settings__c();
-                createNewSObjectList = new List<ChildSObjectWrapper>();
-                SObjectList = new List<SObject>();
-                SObjectfieldList = new List<String>();
-                SObjectChildfieldList = new List<String>();
-                SObjectExistingChildList = new List<SObject>();
-                SObjectInsertedChildList = new List<SObject>();
+                createNewSobjectList = new List<childSobjectWrapper>();
+                sObjectList = new List<sObject>();
+                sObjectfieldList = new List<String>();
+                sObjectChildfieldList = new List<String>();
+                sobjectExistingChildList = new List<Sobject>();
+                sobjectInsertedChildList = new List<Sobject>();
                 listparentFieldSetMember= new  List<Schema.FieldSetMember>();
-                lstChildWrp = new List<ChildSObjectEditWrapper> ();
-                SObjectList = new List<SObject>();
-                SObjectChildList = new List<SObject>();
+                lstChildWrp = new List<childSobjectEditWrapper> ();
+                sObjectList = new List<sobject>();
+                sObjectChildList = new List<sObject>();
+                //createNewSobjectList= new List<childSobjectWrapper>();
                 listChildFieldSetMember = new List<Schema.FieldSetMember>();
                 retrieveFieldSetObjectRec();
                 retrieveParentObjectRecord();
                 retrieveChildFieldset(NULL);
-                if(Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c ) !=null) {
-                    objChildSObject = Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c ).getDescribe().SObjectType.newSObject(null,false);
-                    for (Schema.FieldSetMember fsm : listChildFieldSetMember) {
-                        if (fsm.getFieldPath().equalsIgnoreCase(objSetting.Related_Field_API_Name__c)) {
-                            renderRelatedAPIField = false;
+
+                if(Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ) !=null) {
+                        objChildSobject = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,false);
+
+                        //determine if we need to render the Related_Field_API_Name__c for new rows
+                        for (Schema.FieldSetMember fsm : listChildFieldSetMember) {
+                            if (fsm.getFieldPath().equalsIgnoreCase(objSetting.Related_Field_API_Name__c)) {
+                                //related field defined in field set, do not render column
+                                renderRelatedAPIField = false;
+                            }
                         }
-                    }
                 }
+
                 createNewChildRecord();
-                childDataList = getChildData ();
+                childDataList = getChildData (); // list to display the child object records in 3rd section
             }
         }
-
+        
+        /**
+         *  A method to display the error messages that are passed down to the method as parameters
+         *  Parameters:
+         *  pErrorMessage : The String variable i.e Error Message which to be be displayed in the error message.
+         **/
         public void showError(String pErrorMessage) {
             isVisible = true;
             ApexPages.Message myMsg = new ApexPages.Message(ApexPages.Severity.ERROR, pErrorMessage);
             ApexPages.addMessage(myMsg);
         }
 
-        public static String generateQueryString(String pObjectName, String pFieldValue, String pWhereClauseField, String pQuerySearchId){
-            return 'SELECT ' + pFieldValue + ' FROM ' + pObjectName + ' WHERE ' + pWhereClauseField + ' = \'' + pQuerySearchId + '\'';
+        /**
+         *  A method to generate the query string that can be used to run the dynamic query based
+         *  on the parameters passed
+         *  The parameters passed are as follows
+         *  @pObjectName        = Api Name of the Parent Sobject whose record are to be fetched.
+         *  @pFieldValue        = Comma separated api Name of fields to be queried
+         *  @pWhereClauseField  = Api Name of field to be used in the Where clause.
+         *  @pQuerySearchId     = Record Id of a specific Sobject record
+         **/
+        public static String generateQueryString(String pObjectName,
+                                                 String pFieldValue,
+                                                 String pWhereClauseField,
+                                                 String pQuerySearchId){
+            return STR_SELECT
+                   + WHITESPACE + pFieldValue
+                   + WHITESPACE + STR_FROM
+                   + WHITESPACE + pObjectName +
+                   +WHITESPACE + STR_WHERE
+                   + WHITESPACE + pWhereClauseField + WHITESPACE + '= \'' + pQuerySearchId + '\'';
         }
 
-        public void retrieveParentObjectRecord() {
+        /**
+         * A method which fetches the vlaue form the fielset and displays the values along with  the
+         * fields value on the Parent headerSection in the Vf page. The String variable is paased as
+         * a parameter to the page
+         * Parameters:
+         * pStrObjectId = Id of the parent object provided to the page as an input parameter.
+         **/
+        public void retrieveParentObjectRecord(){
+
             listparentFieldSetMember= new List<Schema.FieldSetMember>();
             String strFieldValue = '';
             String strQuery = '';
-            Schema.FieldSet fieldSetObj = retrieveFieldSetObj(objSetting.Parent_SObject_Name__c, objSetting.Parent_Fieldset_Name__c);
-            if(fieldSetObj != null && fieldSetObj.getFields() != null && !fieldSetObj.getFields().IsEmpty()) {
-                listparentFieldSetMember = fieldSetObj.getFields();
-                for(Schema.FieldSetMember objFields : fieldSetObj.getFields()) {
-                    strFieldValue = String.isBlank(strFieldValue) ? objFields.getFieldPath() : strFieldValue + ' , ' + objFields.getFieldPath();
-                    SObjectfieldList.add(objFields.getFieldPath());
-                }
-                if(!SObjectfieldList.isEmpty()) mapParentFieldApi_HelpText = createChildMapFieldwithHelpText(objSetting.Parent_SObject_Name__c, SObjectfieldList);
-                strQuery = generateQueryString(objSetting.Parent_SObject_Name__c, strFieldValue.removeEnd(','), ' id ', strSObjectId);
-                try {
-                    SObjectList = Database.query(strQuery);
-                } catch(Exception ex) {
-                    showError(ex.getMessage());
-                }
-            }
-        }
 
-        public Map<String, String> createChildMapFieldwithHelpText(String strObjectName,List<String> lstSObjectfieldApi) {
+            Schema.FieldSet fieldSetObj =
+                    retrieveFieldSetObj(objSetting.Parent_Sobject_Name__c,objSetting.Parent_Fieldset_Name__c);
+            
+            if(fieldSetObj != null && fieldSetObj.getFields() != null && !fieldSetObj.getFields().IsEmpty()) {
+
+                listparentFieldSetMember = fieldSetObj.getFields();
+                
+                for(Schema.FieldSetMember objFields : fieldSetObj.getFields()) {
+
+                        strFieldValue = String.isBlank(strFieldValue) ?
+                                        objFields.getFieldPath() : strFieldValue + ' , ' + objFields.getFieldPath();
+                        sObjectfieldList.add(objFields.getFieldPath());
+                        
+                } //for
+                
+                if(!sObjectfieldList.isEmpty()){
+                    // Call createChildMapFieldwithHelpText method to print map on page
+                    mapParentFieldApi_HelpText = createChildMapFieldwithHelpText(objSetting.Parent_Sobject_Name__c, sObjectfieldList);
+                    
+                }
+                    
+                strQuery =
+                        generateQueryString(objSetting.Parent_Sobject_Name__c,
+                                            strFieldValue.removeEnd(','),
+                                            ' id ',
+                                            strSobjectId);
+
+                try {
+                        sObjectList = Database.query(strQuery);
+                } catch(Exception ex) {
+                        showError(ex.getMessage());
+                }
+            } //if
+        }
+        /**
+         *  A method to form a map of API names of fields and HelpText available in fieldSet
+         *  Parameters: Object and List of API names of fields
+         *  strObjectName : Object
+         *  lstSobjectfieldApi : List of API names of fields
+         **/
+        public Map<String,String> createChildMapFieldwithHelpText(string strObjectName,List<string> lstSobjectfieldApi) {
+            
+            // Schema call to get Object information
             Schema.DescribeSObjectResult obj = Schema.getGlobalDescribe().get(strObjectName).getDescribe();
-            Map<String, String> mapFieldApi_HelpText = new Map<String, String>();
-            for(String strFieldApi : lstSObjectfieldApi) {
+            
+            // Map to store API names as Key and HelpText as Value
+            Map<String,String> mapFieldApi_HelpText = new Map<String,String>();
+            
+            // Iterate on API names of fields
+            for(String strFieldApi : lstSobjectfieldApi) {
+                
+                //Schema call to get information of each field
                 Schema.DescribeFieldResult fieldResult = obj.Fields.getMap().get(strFieldApi).getDescribe();
+                
                 if(fieldResult.getInlinehelpText() != null) {
+                    // Put HelpText for respective field in Map
                     mapFieldApi_HelpText.put(strFieldApi,fieldResult.getInlinehelpText());
-                } else {
+                }
+                else {
                     mapFieldApi_HelpText.put(strFieldApi,'');
                 }
-            }
-            return mapFieldApi_HelpText;
-        }
-
+             
+            }   
+        
+        return mapFieldApi_HelpText;
+       }
+        /**
+         *  A method to add the new Instance of the child record to the  Table of inserting records on the page.
+         *  on initialization of the vf page .
+         **/
         public void createNewChildRecord() {
             isFileVisible = false;
-            strAddNoRecords = String.isEmpty(Apexpages.currentpage().getparameters().get('pAddrowNumber')) ? '1' : Apexpages.currentpage().getparameters().get('pAddrowNumber');
-            if(objSetting.Child_SObject_Name__c != null && objSetting.Child_SObject_Name__c != '') {
-                SObjectType soType = Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c);
-                if(soType != null ) {
-                    Map<String,Schema.SObjectField> mfields = soType.getDescribe().fields.getMap();
-                    if(mfields.containsKey(objSetting.Related_Field_API_Name__c)) {
-                        for(Integer i=0; i<Integer.valueOf(strAddNoRecords); i++) {
-                            objChildSObjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c).getDescribe().SObjectType.newSObject(null,false);
-                            for(Integer j=0; j<listChildFieldSetMember.size(); j++) {
-                                Schema.DisplayType fieldType = listChildFieldSetMember[j].getType();
-                                if(paramMap.containsKey(listChildFieldSetMember[j].FieldPath)) {
-                                    if(fieldType == Schema.Displaytype.Date) {
-                                        objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, Date.parse(paramMap.get(listChildFieldSetMember[j].FieldPath)));
-                                    } else if (fieldType == Schema.Displaytype.Datetime) {
-                                        objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, Datetime.parse(paramMap.get(listChildFieldSetMember[j].FieldPath)));
-                                    } else if (fieldType == Schema.Displaytype.Integer) {
-                                        objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, Integer.valueOf(paramMap.get(listChildFieldSetMember[j].FieldPath)));
-                                    } else if (fieldType == Schema.Displaytype.Currency) {
-                                        objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, Decimal.valueOf(paramMap.get(listChildFieldSetMember[j].FieldPath)));
-                                    } else if (fieldType == Schema.Displaytype.Double) {
-                                        objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, Double.valueOf(paramMap.get(listChildFieldSetMember[j].FieldPath)));
-                                    } else {
-                                        objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, paramMap.get(listChildFieldSetMember[j].FieldPath));
-                                    }
-                                } else {
-                                    objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath, objChildSObject.get(listChildFieldSetMember[j].FieldPath));
-                                }
-                            }
-                            objChildSObjectTemp.put(objSetting.Related_Field_API_Name__c, strSObjectId);
-                            createNewSObjectList.add(new ChildSObjectWrapper(++rowNumber,objChildSObjectTemp));
-                        }
-                    } else {
-                        isPageVisible = false;
-                        showError('Inappropriate Settings values encountered. Please navigate to the Settings tab and verify the configured record values or contact your Salesforce administrator.');
-                    }
-                }
+            strAddNoRecords =  Apexpages.currentpage().getparameters().get(PARAM_ROW_NUMBER);
+            if(String.isEmpty(strAddNoRecords)) {
+                    strAddNoRecords = '1';
             }
+
+            if(objSetting.Child_Sobject_Name__c != null && objSetting.Child_Sobject_Name__c != '') {
+
+                    SObjectType sobjectType = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c);
+                    
+                    if(sobjectType != null ) {
+                        Map<String,Schema.SObjectField> mfields = sobjectType.getDescribe().fields.getMap();
+                        if(mfields.containsKey(objSetting.Related_Field_API_Name__c)) {
+
+                            for(Integer i = 0; i < Integer.valueOf(strAddNoRecords); i++) {
+                                    objChildSobjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c ).getDescribe().sobjectType.newSObject(null,false);
+                                    
+                                for(integer j=0; j<listChildFieldSetMember.size(); j++) {
+                                        Schema.DisplayType fieldType = listChildFieldSetMember[j].getType();
+                                        
+                                        //checks if the data type of the field in the URL parameter is Date, Datetime, Currency, Double, Integer
+                                        if(strChildId.containsKey(listChildFieldSetMember[j].FieldPath))
+                                        {
+                                            if(fieldType == Schema.Displaytype.Date) {
+                                                    objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,date.parse(strChildId.get(listChildFieldSetMember[j].FieldPath)));
+                                                    
+                                            }
+                                            else if (fieldType == Schema.Displaytype.Datetime) {
+                                                    objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,Datetime.parse(strChildId.get(listChildFieldSetMember[j].FieldPath)));
+                                            }
+                                            else if (fieldType == Schema.Displaytype.Integer) {
+                                                    objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,integer.valueOf(strChildId.get(listChildFieldSetMember[j].FieldPath)));
+                                            }
+                                            else if (fieldType == Schema.Displaytype.Currency) {
+                                                    objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,Decimal.valueOf(strChildId.get(listChildFieldSetMember[j].FieldPath)));
+                                            }
+                                            else if (fieldType == Schema.Displaytype.Double) {
+                                                    objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,Double.valueOf(strChildId.get(listChildFieldSetMember[j].FieldPath)));
+                                            }
+                                            else {
+                                                    objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,strChildId.get(listChildFieldSetMember[j].FieldPath));
+                                            }
+                                        }
+                                        else {
+                                                objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath, objChildSobject.get(listChildFieldSetMember[j].FieldPath));
+                                        }
+                                }
+
+                                //populate master lookup with parent id
+                                objChildSobjectTemp.put(objSetting.Related_Field_API_Name__c, strSobjectId);
+                                createNewSobjectList.add(new childSobjectWrapper(++rowNumber,objChildSobjectTemp));
+                            }
+                        }else{
+                                isPageVisible = false;
+                                showError(Label.Setting_object_Field_Values);
+                        }
+                    }
+            } //if
             isFileVisible = true;
         }
+        
+        /*
+        * Description: This method creates a new cloned row with the same data when clicked on any row
+        * Input: 
+        * Output: Creates a new duplicate row
+         */
+        public PageReference addCloneChildRecord() {
+            if(objSetting.Child_Sobject_Name__c != null && objSetting.Child_Sobject_Name__c != '') {
 
-<<<<<<< HEAD
                 SObjectType sobjectType = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c);
                 if(sobjectType != null ) {
 
@@ -200,76 +348,117 @@ public with sharing class Addmultiplechildrecordscontroller {
                                 objChildSobjectTemp.put(listChildFieldSetMember[j].FieldPath,createNewSobjectList[assignedRowNumber-1].objCreateSobject.get(listChildFieldSetMember[j].FieldPath));
                                 
                             }
+                            objChildSobjectTemp.put(objSetting.Related_Field_API_Name__c, strSobjectId);
                             createNewSobjectList.add(new childSobjectWrapper(++rowNumber, objChildSobjectTemp));
                             
-=======
-        public PageReference addCloneChildRecord() {
-            if(objSetting.Child_SObject_Name__c != null && objSetting.Child_SObject_Name__c != '') {
-                SObjectType SObjectType = Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c);
-                if(SObjectType != null ) {
-                    Map<String,Schema.SObjectField> mfields = SObjectType.getDescribe().fields.getMap();
-                    if(mfields.containsKey(objSetting.Related_Field_API_Name__c) & assignedRowNumber != null) {
-                        objChildSObjectTemp = Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c ).getDescribe().SObjectType.newSObject(null,false);
-                        for(Integer j=0; j<listChildFieldSetMember.size(); j++) {
-                            Schema.DisplayType fieldType = listChildFieldSetMember[j].getType();
-                            objChildSObjectTemp.put(listChildFieldSetMember[j].FieldPath,createNewSObjectList[assignedRowNumber-1].objCreateSObject.get(listChildFieldSetMember[j].FieldPath));
->>>>>>> refs/remotes/origin/master
                         }
-                        createNewSObjectList.add(new ChildSObjectWrapper(++rowNumber, objChildSObjectTemp));
                     }
                 }
-            }
+            } //if
             return null;
         }
 
-        public void retrieveFieldSetObjectRec() {
-            List<Settings__c> settingsList = [SELECT Id, Parent_Fieldset_Name__c, Parent_SObject_Name__c, Parent_Section_Title__c, Child_Fieldset_Name__c, Child_SObject_Name__c, Related_Field_API_Name__c, Child_Section_Title__c, Existing_Child_Records_Title__c, Child_Display_Name__c, Provide_CSV_Upload__c FROM Settings__c WHERE Id = :strFieldsetObjectAssociationId];
+        /**
+         *  A method retrieve the Setting object Record which values can be used to display the
+         *  table on the page and the Id of the setting object is passed to method as a parameter
+         *  Parameters:
+         *  pSId : The String variable i.e pSId is the Id of the setting which is to be used in
+         *         the query.
+         **/
+        public void retrieveFieldSetObjectRec(){
+
+            List<Settings__c> settingsList =
+            [Select Id,
+             Parent_Fieldset_Name__c,
+             Parent_Sobject_Name__c,
+             Parent_Section_Title__c,
+             Child_Fieldset_Name__c,
+             Child_Sobject_Name__c,
+             Related_Field_API_Name__c,
+             Child_Section_Title__c,
+             Existing_Child_Records_Title__c,
+             Child_Display_Name__c,
+             Is_Include_Csv__c
+             From Settings__c
+             Where Id = : strFieldsetObjectAssociationId];
+
             objSetting = new Settings__c();
             objSettingForDelete = new Settings__c();
-            if(settingsList<> null && !settingsList.isEmpty()) {
-                objSetting = settingsList.get(0);
-                objSettingForDelete = settingsList.get(0);
-            }
+            if(settingsList <> null && !settingsList.isEmpty()) {
+                    objSetting = settingsList.get(0);
+                    objSettingForDelete = settingsList.get(0);
+            } //if
         }
 
+        
+        
+        
+        /**
+         *  Fetch the Fields or list of the Fields from the child object that are related to the Parent object.
+         **/
         public void retrieveChildFieldset(set<Id> setChildIds) {
+
             String strFieldValue = '';
             String strQuery = '';
             isSaveMessage = false;
             isDeleterMessage = false;
-            SObjectExistingChildList = new List<SObject>();
-            SObjectInsertedChildList = new List<SObject>();
-            SObjectChildfieldList = new List<String>();
+            sobjectExistingChildList = new List<Sobject>();
+            sobjectInsertedChildList = new List<Sobject>();
+            sObjectChildfieldList = new List<String>();
             listChildFieldSetMember = new List<Schema.FieldSetMember>();
-            Schema.FieldSet fieldSetObj = retrieveFieldSetObj(objSetting.Child_SObject_Name__c,objSetting.Child_Fieldset_Name__c);
+            
+            Schema.FieldSet fieldSetObj = retrieveFieldSetObj(objSetting.Child_Sobject_Name__c,objSetting.Child_Fieldset_Name__c);
             try {
                 if(fieldSetObj != null && fieldSetObj.getFields() != null && !fieldSetObj.getFields().IsEmpty()) {
                     listChildFieldSetMember = fieldSetObj.getFields();
                     for(Schema.FieldSetMember objFields : fieldSetObj.getFields()) {
-                        strFieldValue = String.isBlank(strFieldValue) ? objFields.getFieldPath() : strFieldValue + ', ' + objFields.getFieldPath();
-                        SObjectChildfieldList.add(objFields.getFieldPath());
+
+                        strFieldValue = String.isBlank(strFieldValue) ?
+                                        objFields.getFieldPath() :
+                                        strFieldValue + COMMA + objFields.getFieldPath();
+
+                        sObjectChildfieldList.add(objFields.getFieldPath());
+                        
+
+                    } //for
+                    
+                    
+                    if(!sObjectChildfieldList.isEmpty()){
+                        // Call createChildMapFieldwithHelpText method to print map on page
+                        mapChildFieldApi_HelpText = createChildMapFieldwithHelpText(objSetting.Child_Sobject_Name__c, sObjectChildfieldList);
                     }
-                    if(!SObjectChildfieldList.isEmpty()) mapChildFieldApi_HelpText = createChildMapFieldwithHelpText(objSetting.Child_SObject_Name__c, SObjectChildfieldList);
-                    strQuery = generateQueryString(objSetting.Child_SObject_Name__c, strFieldValue.removeEnd(','), objSetting.Related_Field_API_Name__c, strSObjectId);
+                    
+                    strQuery = generateQueryString(objSetting.Child_Sobject_Name__c,
+                                                   strFieldValue.removeEnd(','),
+                                                   objSetting.Related_Field_API_Name__c,
+                                                   strSobjectId);
                     if(setChildIds != NULL && setChildIds.size() > 0) {
-                        strQuery += ' AND Id IN :setChildIds';
-                        SObjectInsertedChildList = Database.query(strQuery);
-                    } else {
-                        fillWrapperList(strQuery);
+
+                        strQuery += WHITESPACE + STR_AND;
+                        strQuery += WHITESPACE + STR_ID;
+                        strQuery += WHITESPACE + STR_IN;
+                        strQuery += WHITESPACE + STR_COLON;
+                        strQuery += WHITESPACE + 'setChildIds';
+                        sobjectInsertedChildList = Database.query(strQuery);
+
+                    }
+                    else {
+                        fillWrapperList (strQuery); // sobjectExistingChildList = Database.query(strQuery);
                     }
                 }
-            } catch(System.QueryException queryException) {
-                showError(queryException.getMessage());
+            }
+            catch(System.QueryException queryException) {
+                    showError(queryException.getMessage());
             }
         }
 
-        public void fillWrapperList(String queryStr) {
-            lstChildWrpMap = new Map<Integer, ChildSObjectEditWrapper> ();
+        public void fillWrapperList (String queryStr) {
+            lstChildWrpMap = new Map<Integer, childSobjectEditWrapper> ();
             Integer i = 0;
-            for (SObject obj : Database.query(queryStr)) {
-                ChildSObjectEditWrapper childWrp = new ChildSObjectEditWrapper ();
+            for (sObject obj : Database.query(queryStr)) {
+                childSobjectEditWrapper childWrp = new childSobjectEditWrapper ();
                 childWrp.editRecord = false;
-                childWrp.objChildSObject = obj;
+                childWrp.objChildSobject = obj;
                 childWrp.rowIndexNo = i;
                 lstChildWrpMap.put (i, childWrp);
                 lstChildWrp.add (childWrp);
@@ -277,200 +466,308 @@ public with sharing class Addmultiplechildrecordscontroller {
             }
         }
 
-        public List<ChildSObjectEditWrapper> getChildData () {
-            if (lstChildWrpMap == null) { return null; }
+        public List<childSobjectEditWrapper> getChildData () {
+            if (lstChildWrpMap == null) {return null; }
             return lstChildWrpMap.values();
         }
-
-        public void editChildFieldset() {
-            if(rowIndex != null && lstChildWrpMap.containsKey(rowIndex) && !lstChildWrpMap.get(rowIndex).editRecord) lstChildWrpMap.get(rowIndex).editRecord = true;
+        /*
+           *This method will is used to edit the child object that are related to the Parent object.
+         */
+        public void editChildFieldset()
+        {
+            if (rowIndex != null && lstChildWrpMap.containsKey(rowIndex)) {
+                if (!lstChildWrpMap.get(rowIndex).editRecord) {
+                    lstChildWrpMap.get(rowIndex).editRecord = true;
+                }
+            }
             getChildData();
             isSaveMessage = false;
             isDeleterMessage = false;
         }
 
+
+        /*
+         * Save the Fields or list of the Fields from the child object that are related to the Parent object.
+         *
+         */
         public void saveChildFieldset() {
             if (rowIndex != null && lstChildWrpMap.containsKey(rowIndex))  {
-                lstChildWrpMap.get(rowIndex).editRecord = false;
-                update lstChildWrpMap.get(rowIndex).objChildSObject;
+                lstChildWrpMap.get (rowIndex).editRecord = false;
+                update lstChildWrpMap.get(rowIndex).objChildSobject;
             }
         }
-
         public void cancelChildContact(Integer rowIndex) {
+           
             if(rowIndex != null && rowIndex >= 0){
                 String strFieldValue = '';
                 String strQuery = '';
-                SObjectChildfieldList = new List<String>();
+                sObjectChildfieldList = new List<String>();
                 listChildFieldSetMember = new List<Schema.FieldSetMember>();
-                Schema.FieldSet fieldSetObj = retrieveFieldSetObj(objSetting.Child_SObject_Name__c,objSetting.Child_Fieldset_Name__c);
+                Schema.FieldSet fieldSetObj = retrieveFieldSetObj(objSetting.Child_Sobject_Name__c,objSetting.Child_Fieldset_Name__c);
                 try {
                     if(fieldSetObj != null && fieldSetObj.getFields() != null && !fieldSetObj.getFields().IsEmpty()) {
                         listChildFieldSetMember = fieldSetObj.getFields();
                         for(Schema.FieldSetMember objFields : fieldSetObj.getFields()) {
-                            strFieldValue = String.isBlank(strFieldValue) ? objFields.getFieldPath() : strFieldValue + ', ' + objFields.getFieldPath();
-                            SObjectChildfieldList.add(objFields.getFieldPath());
-                        }
-                        strQuery = generateQueryString(objSetting.Child_SObject_Name__c, strFieldValue.removeEnd(','), objSetting.Related_Field_API_Name__c, strSObjectId) + ' AND ID =\''+ childDataList[rowIndex].objChildSObject.Id + '\'';
-                        SObject cancelObj = Database.Query(strQuery);
+
+                            strFieldValue = String.isBlank(strFieldValue) ?
+                                            objFields.getFieldPath() :
+                                            strFieldValue + COMMA + objFields.getFieldPath();
+
+                            sObjectChildfieldList.add(objFields.getFieldPath());
+                            
+
+                        } //for
+                        strQuery = generateQueryString(objSetting.Child_Sobject_Name__c,
+                                                       strFieldValue.removeEnd(','),
+                                                       objSetting.Related_Field_API_Name__c,
+                                                       strSobjectId);
+                        
+                        strQuery += ' AND ID =\''+ childDataList[rowIndex].objChildSobject.Id + '\'';
+                        Sobject cancelObj = Database.Query(strQuery);
                         childDataList[rowIndex].editRecord = false;
-                        childDataList[rowIndex].objChildSObject = cancelObj;
+                        childDataList[rowIndex].objChildSobject = cancelObj;
+                                                  
                     }
-                } catch(System.QueryException queryException) {
-                    showError(queryException.getMessage());
-                }
+                }   
+                catch(System.QueryException queryException) {
+                        showError(queryException.getMessage());
+                } 
             }
+            
         }
         public void cancelChildFieldset() {
             if (rowIndex != null && lstChildWrpMap.containsKey(rowIndex))  {
                 lstChildWrpMap.get(rowIndex).editRecord = false;
                 cancelChildContact(rowIndex);
+                
             }
         }
+        
+        /**
+         * It returns the fielset object based on the object and FieldSetName as a parameter
+         * to the method
+         * @pstrObjectName: It is the name of the object in which the fieldset is present
+         * @pstrFieldSetName: It is the name of the Fieldset that is present for the org
+         **/
+        public Schema.FieldSet retrieveFieldSetObj(String pstrObjectName,String pstrFieldSetName){
 
-        public Schema.FieldSet retrieveFieldSetObj(String pstrObjectName, String pstrFieldSetName){
             if(!Schema.getGlobalDescribe().containsKey(pstrObjectName)) {
                 isPageVisible = false;
-                showError('Inappropriate Settings values encountered. Please navigate to the Settings tab and verify the configured record values or contact your Salesforce administrator.');
+                showError(Label.Setting_object_Field_Values);
                 return null;
-            }
-            Schema.DescribeSObjectResult SObjectDescribeResult = Schema.getGlobalDescribe().get(pstrObjectName).getDescribe();
-            if(!SObjectDescribeResult.FieldSets.getMap().containsKey(pstrFieldSetName)) {
-                isPageVisible = false;
-                showError('Inappropriate Settings values encountered. Please navigate to the Settings tab and verify the configured record values or contact your Salesforce administrator.');
-                return null;
-            }
-            return SObjectDescribeResult.FieldSets.getMap().get(pstrFieldSetName);
-        }
+            } //if
 
-        public PageReference saveChildObject() {
+            Schema.DescribeSObjectResult sobjectDescribeResult =
+                Schema.getGlobalDescribe().get(pstrObjectName).getDescribe();
+
+            if(!sobjectDescribeResult.FieldSets.getMap().containsKey(pstrFieldSetName)) {
+                isPageVisible = false;
+                showError(Label.Setting_object_Field_Values);
+                return null;
+            } //if
+
+            return sobjectDescribeResult.FieldSets.getMap().get(pstrFieldSetName);
+        }
+        
+        /**
+         *  A method to save the record for inserting the child records
+         **/
+        public PageReference saveChildObject(){
             isSaveMessage = true;
             PageReference objPageReference;
             setInsertedchildId = new Set<Id>();
-            List<SObject> SObjectToInsert = new List<SObject>();
-            if(createNewSObjectList != null && !createNewSObjectList.IsEmpty()) {
-                for(ChildSObjectWrapper objcreateNewSObject : createNewSObjectList) {
-                    SObjectToInsert.add(objcreateNewSObject.objCreateSObject);
+            List<Sobject> sObjectToInsert = new List<Sobject>();
+
+            if(createNewSobjectList != null && !createNewSobjectList.IsEmpty()) {
+                for(childSobjectWrapper objcreateNewSObject : createNewSobjectList) {
+                    sObjectToInsert.add(objcreateNewSObject.objCreateSobject);
                 }
-            }
-            if(SObjectToInsert == null || SObjectToInsert.isEmpty()) {
-                showError('There are no records to save. Please add the records before saving the records.');
+
+            } //if
+            
+            if(sObjectToInsert == null || sObjectToInsert.IsEmpty()) {
+                showError(Label.SaveError_Message);
                 return null;
-            }
+            } //if
             try {
-                Database.Saveresult[] saveResult = Database.insert(SObjectToInsert);
+                Database.Saveresult[] saveResult = Database.insert(sObjectToInsert);
+                    
+
                 Database.SaveResult sr = saveResult[0];
                 if(sr.isSuccess()) {
-                    for(SObject sObj : SObjectToInsert) {
-                        setInsertedchildId.add(String.valueOf(sObj.get('Id')));
-                    }
-                    objPageReference = new PageReference('/' + strSObjectId);
-                    objPageReference.setRedirect(true);
+                        for(sObject sObj : sObjectToInsert) {
+                                setInsertedchildId.add(String.valueOf(sObj.get('Id')));
+                        }
+                        objPageReference = new pageReference('/' +strSobjectId);
+                        objPageReference.setRedirect(true);
+                        createNewSobjectList = new List<childSobjectWrapper>();
+                        createNewChildRecord();
                 }
                 else {
                     Database.Error[] errors = sr.getErrors();
                     for (Database.Error err : errors) {
                         showError(err.getMessage());
                     }
-                }
+                } //if
             }
             catch(DMLException ex){
                     ShowError(ex.getMessage());
             }
+
             return objPageReference;
         }
-
-        public PageReference showInsertedChildRecords() {
+        
+        /**
+         *  A method that save the records that are present in the savelist as the child
+         *  of the parent object
+         **/
+        public PageReference showInsertedChildRecords(){
             quickSaveRecords();
             retrieveChildFieldset(setInsertedchildId);
             return null;
         }
 
         public void quickSaveRecords() {
-            SObjectExistingChildList = new List<SObject>();
-            SObjectInsertedChildList = new List<SObject>();
-            SObjectChildfieldList = new List<String>();
+
+            sobjectExistingChildList = new List<Sobject>();
+            sobjectInsertedChildList = new List<Sobject>();
+            sObjectChildfieldList = new List<String>();
             saveChildObject();
             rowNumber = 0;
             isVisible = false;
             isDeleterMessage = false;
         }
 
-        public PageReference quickSaveChildRecords() {
+        public PageReference quickSaveChildRecords(){
             quickSaveRecords();
-            retrieveChildFieldset(null);
-            childDataList = getChildData();
+            retrieveChildFieldset(NULL);
+            // list with updated newly added records, helps to rerender and display records after quick save immediately
+            childDataList = getChildData (); 
             isSaveMessage = true;
-			return null;
-        }
-
-        @RemoteAction
-        public static String deleteChildRecord(String pStrDelObjId,String pStrchildObjName){
-            String strQuery = generateQueryString(pStrchildObjName, 'Id', 'Id', pStrDelObjId);
-            List<SObject> ListDeletingRec = Database.query(strQuery);
-            if(ListDeletingRec != null && !ListDeletingRec.isEmpty()) {
-                try {
-                    delete ListDeletingRec;
-                    return 'true';
-                } catch(System.DmlException dmlException){
-                    return dmlException.getMessage();
-                }
-            }
-            return 'true';
-        }
-
-        public Pagereference removeItem() {
-            Map<Integer,Integer> mapRemoveRecord = new Map<Integer,Integer>();
-            if (this.createNewSObjectList == null || this.createNewSObjectList.isEmpty()) return null;
-            Integer cnt = 0;
-            for(ChildSObjectWrapper objCreatenewObject : createNewSObjectList) {
-                mapRemoveRecord.put(objCreatenewObject.iRecNo, cnt);
-                cnt++;
-            }
-            createNewSObjectList.remove( mapRemoveRecord.get(Integer.valueOf(apexpages.currentpage().getparameters().get('pIndex'))));
-            Integer startIndex = Integer.valueOf(apexpages.currentpage().getparameters().get('pIndex'));
-            for(Integer i = 0; i < createNewSObjectList.Size(); i++) {
-                createNewSObjectList[i].iRecNo = i+1;
-            }
-            isFileUploaded = false;
-            rowNumber--;
             return null;
         }
 
-        public PageReference cancelItem() {
-            String redirectUrl = (strReturnUrl == null ||strReturnUrl == '') ? ((strSObjectId == null || strSObjectId == '') ? '' : strSObjectId) : strReturnUrl;
+
+        /**
+         * A remoteMethod that deletes the record whose Id is passed down to the method
+         * Parameters:
+         * @pStrDelObjId : The id of the record that is to be deleted.
+         * @pStrChildObjName : Not required.
+         **/
+        @RemoteAction
+        public static String deleteChildRecord(String pStrDelObjId,String pStrchildObjName){
+            String strQuery =
+                    generateQueryString(pStrchildObjName,
+                                        'Id',
+                                        'Id',
+                                        pStrDelObjId);
+
+            List<Sobject> ListDeletingRec = Database.query(strQuery);
+
+            if(ListDeletingRec != null && !ListDeletingRec.isEmpty()) {
+
+                try {
+                    delete ListDeletingRec;
+                    return 'true';
+                }
+                catch(System.DmlException dmlException){
+                    return dmlException.getMessage();
+                }
+            } //if
+
+        return 'true';
+        }
+
+        /**
+         * Removes the Item records from the list of records which is to be inserted only when the
+         * remove link is clicked on the page
+         **/
+        public Pagereference removeItem(){
+
+            Map<Integer,Integer> mapRemoveRecord = new Map<Integer,Integer>();
+
+            if (this.createNewSobjectList == null || this.createNewSobjectList.isEmpty()) return null;
+
+            Integer cnt = 0;
+            for(childSobjectWrapper objCreatenewObject : createNewSobjectList) {
+                mapRemoveRecord.put(objCreatenewObject.iRecNo, cnt);
+                cnt++;
+            } //for
+
+            createNewSobjectList.remove(
+                    mapRemoveRecord.get(Integer.valueOf(apexpages.currentpage().getparameters().get(PARAM_INDEX))));
+            Integer startIndex = Integer.valueOf(apexpages.currentpage().getparameters().get(PARAM_INDEX));
+
+            for(Integer i = 0; i < createNewSobjectList.Size(); i++) {
+            
+                createNewSobjectList[i].iRecNo = i+1;
+                
+            }
+            isFileUploaded = false;
+            rowNumber--;
+
+            return null;
+        }
+        /**
+         * A method that is called when clicked on the Cancel button present on the
+         * page Which redirects the user to the previous page from which the page was called.
+         **/
+        public PageReference cancelItem(){
+
+            String redirectUrl = (strReturnUrl == null ||strReturnUrl == '') ?
+                                 ((strSobjectId == null || strSobjectId == '') ? '' : strSobjectId)
+                                 : strReturnUrl;
             PageReference objPageReference = new pageReference( '/' + redirectUrl);
             objPageReference.setRedirect(true);
             return objPageReference;
         }
 
-        public void displayDeletionMessage() {
-            String errorMessage = Apexpages.currentPage().getParameters().get('pErrorMessage');
-            ApexPages.Message myMsg = errorMessage.equals('Record Deleted Successfully.') ? new ApexPages.Message(ApexPages.Severity.INFO, errorMessage) : new ApexPages.Message(ApexPages.Severity.ERROR, errorMessage);
+        /**
+         *  A method to display the status of the Deletion of record from the page
+         **/
+        public void displayDeletionMessage(){
+
+            String errorMessage = Apexpages.currentPage().getParameters().get(PARAM_DELETEDERRORMSG);
+            ApexPages.Message myMsg = errorMessage.equals(Label.Record_Delete_Confirmation) ?
+                                      new ApexPages.Message(ApexPages.Severity.INFO, errorMessage) :
+                                              new ApexPages.Message(ApexPages.Severity.ERROR, errorMessage);
             ApexPages.addMessage(myMsg);
             isSaveMessage = false;
             isDeleterMessage = true;
         }
 
-        public void displayDeleteChildMessage() {
+        /**
+         *  A method to display a refereshed list for the childRecords along-with the message on the vf
+         *  page after deleting the a child record
+         **/
+        public void displayDeleteChildMessage(){
+
             retrieveChildFieldset(NULL);
             isSaveMessage = false;
             isDeleterMessage = true;
             childDataList = getChildData ();
+            
         }
 
-        public void displayDeleteChildMessage_QuickSave() {
+        public void displayDeleteChildMessage_QuickSave(){
+
             retrieveChildFieldset(setInsertedchildId);
             isSaveMessage = false;
             isDeleterMessage = true;
         }
 
-        public PageReference exportDetailReport() {
+        /**
+         *  A method to download .csv file which contains all the fields specified in child filedSet.
+         **/
+
+        public PageReference exportDetailReport(){
             strHeaderRowValue = NULL;
-            for(String strRowHeader : SObjectChildfieldList) {
+            for(String strRowHeader : sObjectChildfieldList) {
                 if(strHeaderRowValue != NULL) {
-                    strHeaderRowValue += ','+ strRowHeader;
-                } else {
-                    strHeaderRowValue = strRowHeader;
+                        strHeaderRowValue += ','+ strRowHeader;
+                }
+                else {
+                        strHeaderRowValue = strRowHeader;
                 }
             }
             PageReference nextpage = new PageReference('/apex/ExportChildFieldSetCsv');
@@ -479,127 +776,162 @@ public with sharing class Addmultiplechildrecordscontroller {
         }
 
         public Pagereference importCSVFile() {
+            //createNewSobjectList= new List<childSobjectWrapper>();
             try {
                 if(csvFileBody != NULL) {
-                    csvAsString = csvFileBody.toString();
-                    csvFileLines = csvAsString.split('\n');
-                    strHeaderRow = csvFileLines[0].split(',');
-                    for (Integer i = 1; i < csvFileLines.size(); i++) {
-                        String[] inputvalues = new String[] {};
-                        inputvalues = csvFileLines[i].split(',');
-                        SObject SObjectToInsert = Schema.getGlobalDescribe().get(objSetting.Child_SObject_Name__c).newSObject();
-                        for(Integer iField = 0; iField < listChildFieldSetMember.size(); iField++) {
-                            if(strHeaderRow[iField].trim().equalsIgnoreCase(listChildFieldSetMember[iField].getFieldPath())) {
-                                if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Double) {
-                                    SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Double.valueOf(inputvalues[iField].trim()));
-                                } else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Integer) {
-                                    SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Integer.valueOf(inputvalues[iField].trim()));
-                                } else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Currency) {
-                                    SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Decimal.valueOf(inputvalues[iField].trim()));
-                                } else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Date) {
-                                    try {
-                                        SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), date.parse(inputvalues[iField].trim()));
-                                    } catch(Exception e) {
-                                        isVisible = true;
-                                        isSaveMessage = false;
-                                        isDeleterMessage = false;
-                                        ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'The column format must be <b> mm/dd/yyyy </b>for the Date field <b>'+listChildFieldSetMember[iField].getFieldPath()+ '</b> in uploaded csv file.');
-                                        ApexPages.addMessage(errorMessage);
-                                    }
-                                } else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Datetime) {
-                                    try {
-                                        SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Datetime.parse(inputvalues[iField].trim()));
-                                    } catch(Exception e) {
-                                        isVisible = true;
-                                        isSaveMessage = false;
-                                        isDeleterMessage = false;
-                                        ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'The column format must be <b> mm/dd/yyyy hh:mm AM/PM </b>for the DateTime field <b>'+listChildFieldSetMember[iField].getFieldPath()+ '</b> in uploaded csv file.');
-                                        ApexPages.addMessage(errorMessage);
-                                    }
-                                } else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Boolean) {
-                                    try {
-                                        if(inputvalues[iField].trim().equalsIgnoreCase('Yes')) {
-                                            SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Boolean.valueOf('true'));
-                                        } else if(inputvalues[iField].trim().equalsIgnoreCase('No')) {
-                                            SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Boolean.valueOf('false'));
-                                        } else {
-                                            SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Boolean.valueOf(inputvalues[iField].trim()));
+                        csvAsString = csvFileBody.toString();
+                        csvFileLines = csvAsString.split('\n');
+                        //listAccountToInsert = new List<sObject>();
+                        strHeaderRow = csvFileLines[0].split(',');
+
+                        for (Integer i = 1; i < csvFileLines.size(); i++) {
+
+                                String[] inputvalues = new String[] {};
+                                inputvalues = csvFileLines[i].split(',');
+
+                                sObject sObjectToInsert = Schema.getGlobalDescribe().get(objSetting.Child_Sobject_Name__c).newSObject();
+
+                                for(Integer iField = 0; iField < listChildFieldSetMember.size(); iField++) {
+                                        if(strHeaderRow[iField].trim().equalsIgnoreCase(listChildFieldSetMember[iField].getFieldPath())) {
+
+                                                if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Double) {
+                                                        sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Double.valueOf(inputvalues[iField].trim()));
+                                                }
+                                                else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Integer) {
+                                                        sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Integer.valueOf(inputvalues[iField].trim()));
+                                                }
+                                                else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Currency) {
+                                                        sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Decimal.valueOf(inputvalues[iField].trim()));
+                                                }
+                                                else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Date) {
+                                                        try {
+                                                                sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), date.parse(inputvalues[iField].trim()));
+                                                        }
+                                                        catch(Exception e) {
+                                                            isVisible = true;
+                                                            isSaveMessage = false;
+                                                            isDeleterMessage = false;
+                                                            ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'The column format must be <b> mm/dd/yyyy </b>for the Date field <b>'+listChildFieldSetMember[iField].getFieldPath()+ '</b> in uploaded csv file.');
+                                                            ApexPages.addMessage(errorMessage);
+                                                        }
+
+                                                }
+                                                else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Datetime) {
+                                                        try {
+                                                                sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Datetime.parse(inputvalues[iField].trim()));
+                                                        }
+                                                        catch(Exception e) {
+                                                            isVisible = true;
+                                                            isSaveMessage = false;
+                                                            isDeleterMessage = false;
+                                                            ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'The column format must be <b> mm/dd/yyyy hh:mm AM/PM </b>for the DateTime field <b>'+listChildFieldSetMember[iField].getFieldPath()+ '</b> in uploaded csv file.');
+                                                            ApexPages.addMessage(errorMessage);
+                                                        }
+                                                }
+                                                else if(listChildFieldSetMember[iField].getType() == Schema.Displaytype.Boolean) {
+                                                        try {
+                                                                if(inputvalues[iField].trim().equalsIgnoreCase('Yes')) {
+                                                                    sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Boolean.valueOf('true'));
+                                                                }
+                                                                else if(inputvalues[iField].trim().equalsIgnoreCase('No')) {
+                                                                    sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Boolean.valueOf('false'));
+                                                                }
+                                                                else {
+                                                                    sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), Boolean.valueOf(inputvalues[iField].trim()));
+                                                                }
+                                                        }
+                                                        catch(Exception e) {
+                                                            isVisible = true;
+                                                            isSaveMessage = false;
+                                                            isDeleterMessage = false;
+                                                            ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
+                                                            ApexPages.addMessage(errorMessage);
+                                                        }
+
+                                                }
+                                                else {
+                                                        try {
+                                                            sObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), inputvalues[iField].trim());
+                                                        }
+                                                        catch(Exception e){
+                                                            isVisible = true;
+                                                            isSaveMessage = false;
+                                                            isDeleterMessage = false;
+                                                            ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
+                                                            ApexPages.addMessage(errorMessage);
+                                                        }
+
+                                                }
                                         }
-                                    } catch(Exception e) {
-                                        isVisible = true;
-                                        isSaveMessage = false;
-                                        isDeleterMessage = false;
-                                        ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
-                                        ApexPages.addMessage(errorMessage);
-                                    }
-                                } else {
-                                    try {
-                                        SObjectToInsert.put(listChildFieldSetMember[iField].getFieldPath(), inputvalues[iField].trim());
-                                    } catch(Exception e){
-                                        isVisible = true;
-                                        isSaveMessage = false;
-                                        isDeleterMessage = false;
-                                        ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
-                                        ApexPages.addMessage(errorMessage);
-                                    }
                                 }
-                            }
+                                isFileUploaded = true;
+                                if(createNewSobjectList != NULL && createNewSobjectList.size() > 0) {
+                                    if(rowNumber == 1) {
+                                            createNewSobjectList.remove(0);
+                                    }
+                                    createNewSobjectList.add(new childSobjectWrapper(++rowNumber, sObjectToInsert));
+                                }
+                                else {
+                                    createNewSobjectList= new List<childSobjectWrapper>();
+                                    createNewSobjectList.add(new childSobjectWrapper(++rowNumber, sObjectToInsert));
+                                }
                         }
-                        isFileUploaded = true;
-                        if(createNewSObjectList != NULL && createNewSObjectList.size() > 0) {
-                            if(rowNumber == 1) {
-                                    createNewSObjectList.remove(0);
-                            }
-                            createNewSObjectList.add(new ChildSObjectWrapper(++rowNumber, SObjectToInsert));
+
+                        if(rowNumber == 1) {
+                            createNewSobjectList.remove(0);
                         }
-                        else {
-                            createNewSObjectList= new List<ChildSObjectWrapper>();
-                            createNewSObjectList.add(new ChildSObjectWrapper(++rowNumber, SObjectToInsert));
+                        if(createNewSobjectList.size() < 1) {
+                            isVisible = true;
+                            isSaveMessage = false;
+                            isDeleterMessage = false;
+                            ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'Empty file found.');
+                            ApexPages.addMessage(errorMessage);
                         }
-                    }
-                    if(rowNumber == 1) {
-                        createNewSObjectList.remove(0);
-                    }
-                    if(createNewSObjectList.size() < 1) {
-                        isVisible = true;
-                        isSaveMessage = false;
-                        isDeleterMessage = false;
-                        ApexPages.Message errorMessage = new ApexPages.Message(ApexPages.severity.ERROR,'Empty file found.');
-                        ApexPages.addMessage(errorMessage);
-                    }
-                    csvFileBody = NULL;
-                } else {
-                    isVisible = true;
-                    isSaveMessage = false;
-                    isDeleterMessage = false;
-                    if(!(createNewSObjectList != NULL && createNewSObjectList.size() > 0)) {
-                            createNewChildRecord();
-                    }
-                    ApexPages.Message errormsg = new ApexPages.Message(ApexPages.severity.ERROR,'No file selected for uploading bulk records!');
-                    ApexPages.addMessage(errormsg);
+                        csvFileBody = NULL;
                 }
-            } catch (Exception e) {
-                ApexPages.Message errormsg = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
-                ApexPages.addMessage(errormsg);
+                    else {
+                            isVisible = true;
+                            isSaveMessage = false;
+                            isDeleterMessage = false;
+                            if(!(createNewSobjectList != NULL && createNewSobjectList.size() > 0)) {
+                                    createNewChildRecord();
+                            }
+                            ApexPages.Message errormsg = new ApexPages.Message(ApexPages.severity.ERROR,'No file selected for uploading bulk records!');
+                            ApexPages.addMessage(errormsg);
+                    }
+            }
+            catch (Exception e) {
+                    ApexPages.Message errormsg = new ApexPages.Message(ApexPages.severity.ERROR,e.getMessage());
+                    ApexPages.addMessage(errormsg);
             }
             return null;
         }
 
-        public class ChildSObjectWrapper {
+
+        /**
+         * A wrapper class which consist of two variables one for the sobject whose record needs to be
+         * inserted and one for providing the proper number to the records.
+         **/
+        public class childSobjectWrapper {
 
             public Integer iRecNo {get; set; }
-            public SObject objCreateSObject {get; set; }
+            public sObject objCreateSobject {get; set; }
 
-            public ChildSObjectWrapper(Integer pRecNo, SObject pobjCreateSObject){
+            public childSobjectWrapper(Integer pRecNo, sObject pobjCreateSobject){
                 iRecNo = pRecNo;
-                objCreateSObject = pobjCreateSObject;
+                objCreateSobject = pobjCreateSobject;
             }
-        }
+        } //childSobjectWrapper ends
 
-        public class ChildSObjectEditWrapper {
+        /**
+         * A wrapper class which consist of two variables one for the sobject whose record needs to be
+         * edited and saved.
+         **/
+        public class childSobjectEditWrapper {
 
             public Boolean editRecord {get; set; }
             public Integer rowIndexNo {get; set; }
-            public SObject objChildSObject {get; set; }
-        }
+            public sObject objChildSobject {get; set; }
+
+        } //childSobjectEditWrapper ends
 }
